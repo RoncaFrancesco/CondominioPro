@@ -28,7 +28,10 @@ window.addEventListener('unhandledrejection', (e) => {
 });
 console.log('app.js loaded', new Date().toISOString());
 
-const API_BASE = 'http://localhost:5000/api';
+// Determina l'URL dell'API in base all'ambiente
+const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+    ? 'http://localhost:5000/api'
+    : `${window.location.protocol}//${window.location.hostname}/api`;
 
 // UTILITY FUNCTIONS
 const formatCurrency = (amount) => {

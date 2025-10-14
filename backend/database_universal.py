@@ -1,12 +1,18 @@
 import os
 import sqlite3
-import psycopg2
-from psycopg2.extras import RealDictCursor
 from datetime import datetime
+
+# Importa psycopg2 solo se necessario
+try:
+    import psycopg2
+    from psycopg2.extras import RealDictCursor
+    PSYCOPG2_AVAILABLE = True
+except ImportError:
+    PSYCOPG2_AVAILABLE = False
 
 # Determina il tipo di database dall'environment
 DATABASE_URL = os.getenv('DATABASE_URL')
-IS_POSTGRES = DATABASE_URL and DATABASE_URL.startswith('postgres')
+IS_POSTGRES = DATABASE_URL and DATABASE_URL.startswith('postgres') and PSYCOPG2_AVAILABLE
 
 def get_db():
     """Ottiene una connessione al database (SQLite o PostgreSQL)"""
