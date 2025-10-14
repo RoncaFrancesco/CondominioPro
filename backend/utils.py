@@ -4,7 +4,7 @@ import hashlib
 from datetime import datetime, timedelta
 from functools import wraps
 from flask import request, jsonify, current_app
-from models import User
+from models import User\nfrom database_universal import exec_sql
 import json
 
 # Chiave segreta per JWT (usa env in produzione)
@@ -215,7 +215,7 @@ def calculate_ripartizione_completa(condominio_id):
     cursor = conn.cursor()
 
     # Pulisci ripartizioni esistenti
-    cursor.execute("""
+    exec_sql(cursor, """
         DELETE FROM ripartizione_spese
         WHERE condominio_id = ?
     """, (condominio_id,))
@@ -230,7 +230,7 @@ def calculate_ripartizione_completa(condominio_id):
 
     for spesa in spese:
         # Calcola ripartizione per questa spesa
-        cursor.execute("""
+        exec_sql(cursor, """
             SELECT p.id as persona_id, p.nome, p.cognome, p.tipo_persona,
                    ui.id as unita_id, ui.numero_unita, m.valore as millesimi
             FROM persone p
@@ -308,7 +308,7 @@ def calculate_ripartizione_completa(condominio_id):
             importo_dovuto = importo_dovuto / quota_divisore
 
             # Salva in database
-            cursor.execute("""
+            exec_sql(cursor, """
                 INSERT INTO ripartizione_spese
                 (condominio_id, persona_id, spesa_id, importo_dovuto, anno)
                 VALUES (?, ?, ?, ?, ?)
@@ -419,7 +419,7 @@ def generate_preventivo_anno(condominio_id, anno):
         cursor = conn.cursor()
 
         # Ottieni tutte le spese dell'anno corrente
-        cursor.execute("""
+        exec_sql(cursor, """
             SELECT * FROM spese
             WHERE condominio_id = ? AND strftime('%Y', created_at) = ?
         """, (condominio_id, str(datetime.now().year)))
@@ -505,7 +505,7 @@ def calculate_ripartizione_preventivo(condominio_id, anno, tabella_filter=None):
 
         for spesa in spese:
             # Calcola ripartizione per questa spesa preventivata
-            cursor.execute("""
+            exec_sql(cursor, """
                 SELECT p.id as persona_id, p.nome, p.cognome, p.tipo_persona,
                        ui.id as unita_id, ui.numero_unita, m.valore as millesimi
                 FROM persone p
@@ -633,3 +633,5 @@ def log_error(error_message, context=None):
     # Potrebbe salvare su file o database
     with open('error.log', 'a', encoding='utf-8') as f:
         f.write(log_entry + '\n')
+
+

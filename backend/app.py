@@ -9,7 +9,7 @@ from docx.enum.table import WD_TABLE_ALIGNMENT
 from io import BytesIO
 
 # Import moduli locali
-from database_universal import init_db, create_default_user
+from database_universal import init_db, create_default_user, exec_sql
 from models import User, Condominio, Persona, Spesa, Millesemo, PreventivoAnnuale, SpesaPreventivata, RipartizionePreventivo, UnitaImmobiliare
 from utils import (
     token_required, hash_password, verify_password, generate_jwt_token, verify_jwt_token,
@@ -869,7 +869,7 @@ def get_ripartizione(condo_id):
 
             for persona in persone:
                 # Filtra spese solo per quella tabella
-                cursor.execute("""
+                exec_sql(cursor, """
                     SELECT s.*, rs.importo_dovuto
                     FROM spese s
                     LEFT JOIN ripartizione_spese rs ON s.id = rs.spesa_id
@@ -938,7 +938,7 @@ def get_ripartizione_dettagliata(condo_id):
         cursor = conn.cursor()
 
         # 1. Ottieni tutte le persone del condominio con numero unità
-        cursor.execute('''
+        exec_sql(cursor, '''
             SELECT p.*, ui.numero_unita
             FROM persone p
             JOIN unita_immobiliari ui ON p.unita_id = ui.id
@@ -961,14 +961,14 @@ def get_ripartizione_dettagliata(condo_id):
 
         # 2. Ottieni le spese del condominio (con eventuale filtro tabella)
         if tabella_filter:
-            cursor.execute('''
+            exec_sql(cursor, '''
                 SELECT s.*, DATE(s.data_spesa) as data_formatted
                 FROM spese s
                 WHERE s.condominio_id = ? AND s.tabella_millesimi = ?
                 ORDER BY s.data_spesa, s.descrizione
             ''', (condo_id, tabella_filter))
         else:
-            cursor.execute('''
+            exec_sql(cursor, '''
                 SELECT s.*, DATE(s.data_spesa) as data_formatted
                 FROM spese s
                 WHERE s.condominio_id = ?
@@ -993,7 +993,7 @@ def get_ripartizione_dettagliata(condo_id):
 
             for spesa in spese_list:
                 # Ottieni millesimi dell'unità per questa tabella
-                cursor.execute('''
+                exec_sql(cursor, '''
                     SELECT valore FROM millesimi
                     WHERE unita_id = ? AND tabella = ? AND condominio_id = ?
                 ''', (persona['unita_id'], spesa['tabella_millesimi'], condo_id))
@@ -1102,7 +1102,7 @@ def get_ripartizione_persona(condo_id, persona_id):
         conn = get_db()
         cursor = conn.cursor()
 
-        cursor.execute("""
+        exec_sql(cursor, """
             SELECT rs.*, s.descrizione, s.importo as importo_totale, s.tabella_millesimi
             FROM ripartizione_spese rs
             JOIN spese s ON rs.spesa_id = s.id
@@ -1477,7 +1477,7 @@ def get_calcolo_preventivo(condo_id, anno):
         from database_universal import get_db
         conn = get_db()
         cursor = conn.cursor()
-        cursor.execute('''
+        exec_sql(cursor, '''
             SELECT p.id as persona_id, ui.numero_unita
             FROM persone p
             JOIN unita_immobiliari ui ON p.unita_id = ui.id
@@ -1597,14 +1597,14 @@ def stampa_spese(condo_id):
         cursor = conn.cursor()
 
         if tabella_filter:
-            cursor.execute("""
+            exec_sql(cursor, """
                 SELECT s.*
                 FROM spese s
                 WHERE s.condominio_id = ? AND s.tabella_millesimi = ?
                 ORDER BY s.data_spesa DESC, s.created_at DESC
             """, (condo_id, tabella_filter))
         else:
-            cursor.execute("""
+            exec_sql(cursor, """
                 SELECT s.*
                 FROM spese s
                 WHERE s.condominio_id = ?
@@ -1844,7 +1844,7 @@ def stampa_ripartizione(condo_id):
         conn = get_db()
         cursor = conn.cursor()
 
-        cursor.execute("""
+        exec_sql(cursor, """
             SELECT p.*, ui.numero_unita
             FROM persone p
             JOIN unita_immobiliari ui ON p.unita_id = ui.id
@@ -1877,7 +1877,7 @@ def stampa_ripartizione(condo_id):
 
             # Ottieni spese per persona con filtro tabella
             if tabella_filter:
-                cursor.execute("""
+                exec_sql(cursor, """
                     SELECT s.*, rs.importo_dovuto
                     FROM spese s
                     LEFT JOIN ripartizione_spese rs ON s.id = rs.spesa_id AND rs.persona_id = ?
@@ -1885,7 +1885,7 @@ def stampa_ripartizione(condo_id):
                     ORDER BY s.created_at DESC
                 """, (persona.id, condo_id, tabella_filter))
             else:
-                cursor.execute("""
+                exec_sql(cursor, """
                     SELECT s.*, rs.importo_dovuto
                     FROM spese s
                     LEFT JOIN ripartizione_spese rs ON s.id = rs.spesa_id AND rs.persona_id = ?
@@ -2217,3 +2217,4 @@ if __name__ == '__main__':
     print("-" * 50)
 
     app.run(debug=True, host='0.0.0.0', port=5000)
+

@@ -14,6 +14,20 @@ except ImportError:
 DATABASE_URL = os.getenv('DATABASE_URL')
 IS_POSTGRES = DATABASE_URL and DATABASE_URL.startswith('postgres') and PSYCOPG2_AVAILABLE
 
+def format_sql(sql: str) -> str:
+    """Adatta i placeholder SQL allo specifico driver.
+
+    - SQLite usa '?'
+    - Postgres/psycopg2 usa '%s'
+    """
+    if IS_POSTGRES and isinstance(sql, str):
+        return sql.replace('?', '%s')
+    return sql
+
+def exec_sql(cursor, sql: str, params=()):
+    """Esegue SQL con adattamento placeholder automatico."""
+    return cursor.execute(format_sql(sql), params)
+
 def get_db():
     """Ottiene una connessione al database (SQLite o PostgreSQL)"""
     if IS_POSTGRES:

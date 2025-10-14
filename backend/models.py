@@ -1,4 +1,4 @@
-from database_universal import get_db
+from database_universal import get_db, exec_sql
 from datetime import datetime
 import json
 
@@ -16,7 +16,7 @@ class User:
         """Trova utente per username"""
         conn = get_db()
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM users WHERE username = ?", (username,))
+        exec_sql(cursor, "SELECT * FROM users WHERE username = ?", (username,))
         row = cursor.fetchone()
         conn.close()
 
@@ -34,7 +34,7 @@ class User:
         """Trova utente per ID"""
         conn = get_db()
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM users WHERE id = ?", (user_id,))
+        exec_sql(cursor, "SELECT * FROM users WHERE id = ?", (user_id,))
         row = cursor.fetchone()
         conn.close()
 
@@ -53,12 +53,12 @@ class User:
         cursor = conn.cursor()
 
         if self.id:
-            cursor.execute("""
+            exec_sql(cursor, """
                 UPDATE users SET username = ?, password = ?
                 WHERE id = ?
             """, (self.username, self.password, self.id))
         else:
-            cursor.execute("""
+            exec_sql(cursor, """
                 INSERT INTO users (username, password)
                 VALUES (?, ?)
             """, (self.username, self.password))
@@ -101,7 +101,7 @@ class Condominio:
         """Ottiene tutti i condominii di un utente"""
         conn = get_db()
         cursor = conn.cursor()
-        cursor.execute("""
+        exec_sql(cursor, """
             SELECT * FROM condominii
             WHERE user_id = ?
             ORDER BY created_at DESC
@@ -138,7 +138,7 @@ class Condominio:
         """Trova condominio per ID"""
         conn = get_db()
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM condominii WHERE id = ?", (condo_id,))
+        exec_sql(cursor, "SELECT * FROM condominii WHERE id = ?", (condo_id,))
         row = cursor.fetchone()
         conn.close()
 
@@ -172,7 +172,7 @@ class Condominio:
 
         try:
             if self.id:
-                cursor.execute("""
+                exec_sql(cursor, """
                     UPDATE condominii SET nome = ?, indirizzo = ?, num_unita = ?,
                     anno_costruzione = ?, numero_scale = ?, presidente_assemblea = ?,
                     responsabile = ?, telefono_responsabile = ?, email_responsabile = ?,
@@ -185,7 +185,7 @@ class Condominio:
                       self.amministratore_esterno, self.partita_iva, self.iban_condominio,
                       self.banca_appoggio, self.descrizione_edificio, self.note_interne, self.id))
             else:
-                cursor.execute("""
+                exec_sql(cursor, """
                     INSERT INTO condominii (user_id, nome, indirizzo, num_unita,
                     anno_costruzione, numero_scale, presidente_assemblea, responsabile,
                     telefono_responsabile, email_responsabile, amministratore_esterno,
@@ -201,7 +201,7 @@ class Condominio:
 
                 # Crea automaticamente le unità immobiliari
                 for i in range(1, self.num_unita + 1):
-                    cursor.execute("""
+                    exec_sql(cursor, """
                         INSERT INTO unita_immobiliari (condominio_id, numero_unita)
                         VALUES (?, ?)
                     """, (self.id, i))
@@ -219,7 +219,7 @@ class Condominio:
         """Elimina condominio e tutti i dati associati"""
         conn = get_db()
         cursor = conn.cursor()
-        cursor.execute("DELETE FROM condominii WHERE id = ?", (self.id,))
+        exec_sql(cursor, "DELETE FROM condominii WHERE id = ?", (self.id,))
         conn.commit()
         conn.close()
 
@@ -236,7 +236,7 @@ class UnitaImmobiliare:
         """Ottiene tutte le unità di un condominio"""
         conn = get_db()
         cursor = conn.cursor()
-        cursor.execute("""
+        exec_sql(cursor, """
             SELECT * FROM unita_immobiliari
             WHERE condominio_id = ?
             ORDER BY numero_unita
@@ -271,7 +271,7 @@ class Persona:
         """Ottiene tutte le persone di un condominio con dettagli unità"""
         conn = get_db()
         cursor = conn.cursor()
-        cursor.execute("""
+        exec_sql(cursor, """
             SELECT p.*, ui.numero_unita
             FROM persone p
             JOIN unita_immobiliari ui ON p.unita_id = ui.id
@@ -299,7 +299,7 @@ class Persona:
         """Trova persona per ID"""
         conn = get_db()
         cursor = conn.cursor()
-        cursor.execute("""
+        exec_sql(cursor, """
             SELECT p.*, ui.numero_unita
             FROM persone p
             JOIN unita_immobiliari ui ON p.unita_id = ui.id
@@ -327,14 +327,14 @@ class Persona:
         cursor = conn.cursor()
 
         if self.id:
-            cursor.execute("""
+            exec_sql(cursor, """
                 UPDATE persone SET unita_id = ?, nome = ?, cognome = ?,
                 email = ?, tipo_persona = ?
                 WHERE id = ?
             """, (self.unita_id, self.nome, self.cognome,
                   self.email, self.tipo_persona, self.id))
         else:
-            cursor.execute("""
+            exec_sql(cursor, """
                 INSERT INTO persone (condominio_id, unita_id, nome, cognome,
                 email, tipo_persona)
                 VALUES (?, ?, ?, ?, ?, ?)
@@ -350,7 +350,7 @@ class Persona:
         """Elimina persona dal database"""
         conn = get_db()
         cursor = conn.cursor()
-        cursor.execute("DELETE FROM persone WHERE id = ?", (self.id,))
+        exec_sql(cursor, "DELETE FROM persone WHERE id = ?", (self.id,))
         conn.commit()
         conn.close()
 
@@ -378,13 +378,13 @@ class Spesa:
         cursor = conn.cursor()
 
         if tabella_filter:
-            cursor.execute("""
+            exec_sql(cursor, """
                 SELECT * FROM spese
                 WHERE condominio_id = ? AND tabella_millesimi = ?
                 ORDER BY data_spesa DESC, created_at DESC
             """, (condominio_id, tabella_filter))
         else:
-            cursor.execute("""
+            exec_sql(cursor, """
                 SELECT * FROM spese
                 WHERE condominio_id = ?
                 ORDER BY data_spesa DESC, created_at DESC
@@ -413,7 +413,7 @@ class Spesa:
         """Trova spesa per ID"""
         conn = get_db()
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM spese WHERE id = ?", (spesa_id,))
+        exec_sql(cursor, "SELECT * FROM spese WHERE id = ?", (spesa_id,))
 
         row = cursor.fetchone()
         conn.close()
@@ -439,7 +439,7 @@ class Spesa:
         cursor = conn.cursor()
 
         if self.id:
-            cursor.execute("""
+            exec_sql(cursor, """
                 UPDATE spese SET descrizione = ?, importo = ?, data_spesa = ?,
                 tabella_millesimi = ?, logica_pi = ?,
                 percentuale_proprietario = ?, percentuale_inquilino = ?
@@ -448,7 +448,7 @@ class Spesa:
                   self.logica_pi, self.percentuale_proprietario,
                   self.percentuale_inquilino, self.id))
         else:
-            cursor.execute("""
+            exec_sql(cursor, """
                 INSERT INTO spese (condominio_id, descrizione, importo, data_spesa,
                 tabella_millesimi, logica_pi, percentuale_proprietario,
                 percentuale_inquilino)
@@ -466,7 +466,7 @@ class Spesa:
         """Elimina spesa dal database"""
         conn = get_db()
         cursor = conn.cursor()
-        cursor.execute("DELETE FROM spese WHERE id = ?", (self.id,))
+        exec_sql(cursor, "DELETE FROM spese WHERE id = ?", (self.id,))
         conn.commit()
         conn.close()
 
@@ -486,7 +486,7 @@ class Millesemo:
         """Ottiene i millesimi per condominio e tabella"""
         conn = get_db()
         cursor = conn.cursor()
-        cursor.execute("""
+        exec_sql(cursor, """
             SELECT m.*, ui.numero_unita
             FROM millesimi m
             JOIN unita_immobiliari ui ON m.unita_id = ui.id
@@ -512,7 +512,7 @@ class Millesemo:
         """Ottiene tutti i millesimi di un'unità"""
         conn = get_db()
         cursor = conn.cursor()
-        cursor.execute("""
+        exec_sql(cursor, """
             SELECT * FROM millesimi
             WHERE unita_id = ?
             ORDER BY tabella
@@ -530,7 +530,7 @@ class Millesemo:
         conn = get_db()
         cursor = conn.cursor()
 
-        cursor.execute("""
+        exec_sql(cursor, """
             INSERT OR REPLACE INTO millesimi
             (condominio_id, unita_id, tabella, valore)
             VALUES (?, ?, ?, ?)
@@ -545,7 +545,7 @@ class Millesemo:
         """Verifica che il totale dei millesimi sia 1000"""
         conn = get_db()
         cursor = conn.cursor()
-        cursor.execute("""
+        exec_sql(cursor, """
             SELECT SUM(valore) as totale
             FROM millesimi
             WHERE condominio_id = ? AND tabella = ?
@@ -576,7 +576,7 @@ class PreventivoAnnuale:
         """Ottiene tutti i preventivi di un condominio"""
         conn = get_db()
         cursor = conn.cursor()
-        cursor.execute("""
+        exec_sql(cursor, """
             SELECT * FROM preventivi_annuali
             WHERE condominio_id = ?
             ORDER BY anno DESC
@@ -603,7 +603,7 @@ class PreventivoAnnuale:
         """Trova preventivo annuale per ID"""
         conn = get_db()
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM preventivi_annuali WHERE id = ?", (preventivo_id,))
+        exec_sql(cursor, "SELECT * FROM preventivi_annuali WHERE id = ?", (preventivo_id,))
 
         row = cursor.fetchone()
         conn.close()
@@ -627,7 +627,7 @@ class PreventivoAnnuale:
         cursor = conn.cursor()
 
         if self.id:
-            cursor.execute("""
+            exec_sql(cursor, """
                 UPDATE preventivi_annuali SET
                 importo_totale_preventivato = ?,
                 importo_totale_speso = ?,
@@ -637,7 +637,7 @@ class PreventivoAnnuale:
             """, (self.importo_totale_preventivato, self.importo_totale_speso,
                   self.note, self.id))
         else:
-            cursor.execute("""
+            exec_sql(cursor, """
                 INSERT INTO preventivi_annuali
                 (condominio_id, anno, importo_totale_preventivato,
                 importo_totale_speso, note)
@@ -676,7 +676,7 @@ class SpesaPreventivata:
         """Ottiene tutte le spese preventivate per un preventivo"""
         conn = get_db()
         cursor = conn.cursor()
-        cursor.execute("""
+        exec_sql(cursor, """
             SELECT * FROM spese_preventivate
             WHERE preventivo_id = ?
             ORDER BY COALESCE(data_prevista, DATE('now')) ASC, COALESCE(mese_previsto, 13) ASC, created_at ASC
@@ -708,7 +708,7 @@ class SpesaPreventivata:
         """Ottiene tutte le spese preventivate per condominio e anno"""
         conn = get_db()
         cursor = conn.cursor()
-        cursor.execute("""
+        exec_sql(cursor, """
             SELECT sp.* FROM spese_preventivate sp
             JOIN preventivi_annuali p ON sp.preventivo_id = p.id
             WHERE sp.condominio_id = ? AND p.anno = ?
@@ -741,7 +741,7 @@ class SpesaPreventivata:
         """Trova spesa preventivata per ID"""
         conn = get_db()
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM spese_preventivate WHERE id = ?", (spesa_id,))
+        exec_sql(cursor, "SELECT * FROM spese_preventivate WHERE id = ?", (spesa_id,))
 
         row = cursor.fetchone()
         conn.close()
@@ -770,7 +770,7 @@ class SpesaPreventivata:
         cursor = conn.cursor()
 
         if self.id:
-            cursor.execute("""
+            exec_sql(cursor, """
                 UPDATE spese_preventivate SET
                 descrizione = ?, importo_previsto = ?, tabella_millesimi = ?,
                 logica_pi = ?, percentuale_proprietario = ?, percentuale_inquilino = ?,
@@ -780,7 +780,7 @@ class SpesaPreventivata:
                   self.logica_pi, self.percentuale_proprietario, self.percentuale_inquilino,
                   self.mese_previsto, self.data_prevista, self.note, self.id))
         else:
-            cursor.execute("""
+            exec_sql(cursor, """
                 INSERT INTO spese_preventivate
                 (condominio_id, preventivo_id, descrizione, importo_previsto,
                 tabella_millesimi, logica_pi, percentuale_proprietario,
@@ -800,7 +800,7 @@ class SpesaPreventivata:
         """Elimina spesa preventivata dal database"""
         conn = get_db()
         cursor = conn.cursor()
-        cursor.execute("DELETE FROM spese_preventivate WHERE id = ?", (self.id,))
+        exec_sql(cursor, "DELETE FROM spese_preventivate WHERE id = ?", (self.id,))
         conn.commit()
         conn.close()
 
@@ -822,7 +822,7 @@ class RipartizionePreventivo:
         """Ottiene tutte le ripartizioni per un preventivo"""
         conn = get_db()
         cursor = conn.cursor()
-        cursor.execute("""
+        exec_sql(cursor, """
             SELECT rp.*, p.nome, p.cognome, p.tipo_persona, ui.numero_unita
             FROM ripartizione_preventivo rp
             JOIN persone p ON rp.persona_id = p.id
@@ -851,7 +851,7 @@ class RipartizionePreventivo:
         """Ottiene le ripartizioni per condominio e anno"""
         conn = get_db()
         cursor = conn.cursor()
-        cursor.execute("""
+        exec_sql(cursor, """
             SELECT rp.*, p.nome, p.cognome, p.tipo_persona, ui.numero_unita
             FROM ripartizione_preventivo rp
             JOIN persone p ON rp.persona_id = p.id
@@ -881,7 +881,7 @@ class RipartizionePreventivo:
         conn = get_db()
         cursor = conn.cursor()
 
-        cursor.execute("""
+        exec_sql(cursor, """
             INSERT OR REPLACE INTO ripartizione_preventivo
             (condominio_id, preventivo_id, persona_id, importo_previsto_dovuto, anno)
             VALUES (?, ?, ?, ?, ?)
@@ -897,6 +897,7 @@ class RipartizionePreventivo:
         """Elimina tutte le ripartizioni per un preventivo"""
         conn = get_db()
         cursor = conn.cursor()
-        cursor.execute("DELETE FROM ripartizione_preventivo WHERE preventivo_id = ?", (preventivo_id,))
+        exec_sql(cursor, "DELETE FROM ripartizione_preventivo WHERE preventivo_id = ?", (preventivo_id,))
         conn.commit()
         conn.close()
+
