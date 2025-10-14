@@ -1,0 +1,34 @@
+services:
+  # Database PostgreSQL
+  - type: postgres
+    name: condominio-db
+    plan: free
+    databaseName: condominio_db
+    user: condominio_user
+
+  # Backend Flask
+  - type: web
+    name: condominio-api
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn backend.app:app
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: condominio-db
+          property: connectionString
+      - key: FLASK_ENV
+        value: production
+      - key: PYTHON_VERSION
+        value: 3.9.0
+
+  # Frontend static files
+  - type: web
+    name: condominio-frontend
+    env: static
+    plan: free
+    buildCommand: echo "No build needed"
+    staticPublishPath: ./frontend
+    domains:
+      - condominio-frontend.onrender.com

@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir:*)",
+      "Bash(python:*)",
+      "Bash(pip uninstall:*)",
+      "Bash(pip install:*)",
+      "Bash(taskkill:*)",
+      "Bash(curl:*)",
+      "Bash(tree:*)",
+      "Bash(sqlite3:*)",
+      "Bash(find:*)",
+      "Bash(powershell:*)",
+      "Bash(sed:*)",
+      "Bash(rm:*)",
+      "Bash(start http://localhost:5000)",
+      "Bash(git init:*)",
+      "Bash(git remote add:*)",
+      "Bash(xcopy:*)",
+      "Bash(git clone:*)",
+      "Bash(git add:*)",
+      "Bash(git config:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "WebSearch"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

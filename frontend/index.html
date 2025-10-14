@@ -1,0 +1,94 @@
+﻿<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CONDOMINIO PRO - Gestione Condominiale Professionale</title>
+    <link rel="stylesheet" href="styles.css">
+    <!-- React 18 da CDN -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script>
+      // Fallback: se React/ReactDOM non sono disponibili (CDN bloccato)
+      (function() {
+        function showCdnError(msg) {
+          var el = document.getElementById('root');
+          if (!el) {
+            el = document.createElement('div');
+            el.id = 'root';
+            document.body.appendChild(el);
+          }
+          el.innerHTML = '<div style="padding:16px;color:#b00020;background:#fff3f4;border:1px solid #f1c0c4;border-radius:8px;max-width:900px;margin:24px auto;font-family:sans-serif">'
+            + '<h3 style="margin-top:0">Impossibile caricare React dal CDN</h3>'
+            + '<p>Verifica la connessione a Internet oppure aggiungi i file locali in <code>frontend/vendor/</code>:</p>'
+            + '<ul style="margin:0 0 8px 18px">'
+            + '<li>react.production.min.js</li>'
+            + '<li>react-dom.production.min.js</li>'
+            + '</ul>'
+            + '<p>Se presenti, verranno caricati automaticamente come fallback.</p>'
+            + '</div>';
+        }
+
+        function loadLocalFallback() {
+          var loaded = 0;
+          function done() {
+            loaded++;
+            if (loaded === 2 && !window.ReactDOM) {
+              showCdnError('fallback-failed');
+            }
+          }
+          var s1 = document.createElement('script');
+          s1.src = '/vendor/react.production.min.js';
+          s1.onload = done; s1.onerror = done;
+          document.head.appendChild(s1);
+          var s2 = document.createElement('script');
+          s2.src = '/vendor/react-dom.production.min.js';
+          s2.onload = done; s2.onerror = done;
+          document.head.appendChild(s2);
+        }
+
+        // Se entro breve React non è disponibile, prova fallback locale
+        window.addEventListener('DOMContentLoaded', function() {
+          setTimeout(function() {
+            if (!window.React || !window.ReactDOM) {
+              loadLocalFallback();
+            }
+          }, 100);
+        });
+      })();
+    </script>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script>
+        // Debug: cattura errori JavaScript globali
+        window.addEventListener('error', function(e) {
+            console.error('JavaScript Error:', e.error);
+            document.body.innerHTML = '<div style="padding:20px;color:red;"><h2>Errore JavaScript:</h2><pre>' + e.error.stack + '</pre></div>';
+        });
+
+        // Debug: verifica caricamento React
+        setTimeout(function() {
+            if (!window.React) {
+                console.error('React non caricato!');
+                document.body.innerHTML = '<div style="padding:20px;color:red;"><h2>React non disponibile</h2><p>Controlla connessione o CDN</p></div>';
+            }
+        }, 2000);
+    </script>
+    <script>
+        console.log('Loading app.js...');
+        // Carica app.js con gestione errori
+        var script = document.createElement('script');
+        script.src = 'app.js?v=12';
+        script.onload = function() {
+            console.log('app.js loaded successfully');
+        };
+        script.onerror = function() {
+            console.error('Failed to load app.js');
+            document.body.innerHTML = '<div style="padding:20px;color:red;"><h2>Errore caricamento app.js</h2><p>File non trovato o errore JavaScript</p></div>';
+        };
+        document.head.appendChild(script);
+    </script>
+</body>
+</html>
