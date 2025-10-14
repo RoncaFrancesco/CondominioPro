@@ -344,12 +344,15 @@ def create_default_user():
         cursor.execute("SELECT * FROM users WHERE username = ?", ('admin',))
 
     if cursor.fetchone() is None:
+        # Salva password admin come hash SHA-256 per maggiore sicurezza
+        import hashlib
+        admin_hash = hashlib.sha256('admin123'.encode()).hexdigest()
         if IS_POSTGRES:
             cursor.execute("INSERT INTO users (username, password) VALUES (%s, %s)",
-                          ('admin', 'admin123'))
+                          ('admin', admin_hash))
         else:
             cursor.execute("INSERT INTO users (username, password) VALUES (?, ?)",
-                          ('admin', 'admin123'))
+                          ('admin', admin_hash))
         conn.commit()
         print("Utente default creato: admin/admin123")
 

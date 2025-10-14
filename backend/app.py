@@ -12,7 +12,7 @@ from io import BytesIO
 from database_universal import init_db, create_default_user
 from models import User, Condominio, Persona, Spesa, Millesemo, PreventivoAnnuale, SpesaPreventivata, RipartizionePreventivo, UnitaImmobiliare
 from utils import (
-    token_required, hash_password, generate_jwt_token, verify_jwt_token,
+    token_required, hash_password, verify_password, generate_jwt_token, verify_jwt_token,
     validate_login_data, validate_condominio_data, validate_persona_data,
     validate_spesa_data, validate_millesimi_data, calculate_ripartizione_completa,
     calculate_ripartizione_preventivo, export_condominio_json, generate_preventivo_anno, log_error
@@ -20,7 +20,13 @@ from utils import (
 
 # Inizializza Flask
 app = Flask(__name__, static_folder='../frontend', static_url_path='')
-CORS(app)
+# CORS dinamico: limita in produzione se configurato
+cors_origins = os.getenv('CORS_ORIGINS') or os.getenv('FRONTEND_ORIGIN')
+if cors_origins:
+    origins_list = [o.strip() for o in cors_origins.split(',') if o.strip()]
+    CORS(app, resources={r"/api/*": {"origins": origins_list}})
+else:
+    CORS(app)
 
 # Inizializza database all'avvio
 with app.app_context():
@@ -54,8 +60,8 @@ def login():
         if not user:
             return jsonify({'message': 'Credenziali non valide'}), 401
 
-        # Verifica password (in produzione usare password hashing)
-        if user.password != data['password']:
+        # Verifica password (supporta hash e legacy)
+        if not verify_password(data['password'], user.password):
             return jsonify({'message': 'Credenziali non valide'}), 401
 
         # Genera token
@@ -101,8 +107,8 @@ def register():
         if User.find_by_username(username):
             return jsonify({'message': 'Username già in uso'}), 400
 
-        # Crea nuovo utente
-        user = User(username=username, password=password)  # In produzione: hash_password(password)
+        # Crea nuovo utente (salva hash)
+        user = User(username=username, password=hash_password(password))
         user.save()
 
         return jsonify({'message': 'Utente creato con successo'}), 201

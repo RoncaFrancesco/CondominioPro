@@ -1,3 +1,4 @@
+import os
 import jwt
 import hashlib
 from datetime import datetime, timedelta
@@ -6,12 +7,25 @@ from flask import request, jsonify, current_app
 from models import User
 import json
 
-# Chiave segreta per JWT (in produzione dovrebbe essere in variabile d'ambiente)
-SECRET_KEY = "condominio_nuovo_secret_key_2025"
+# Chiave segreta per JWT (usa env in produzione)
+SECRET_KEY = os.getenv("SECRET_KEY", "change-me-in-prod")
 
 def hash_password(password):
     """Hash della password usando SHA-256"""
     return hashlib.sha256(password.encode()).hexdigest()
+
+def verify_password(plain_password, stored_value):
+    """Verifica password: compatibile con valori in chiaro e SHA-256.
+
+    - Se la password salvata ha lunghezza 64 (hex SHA-256), confronta l'hash.
+    - Altrimenti, confronta in chiaro per compatibilità con vecchi utenti.
+    """
+    try:
+        if isinstance(stored_value, str) and len(stored_value) == 64 and all(c in "0123456789abcdef" for c in stored_value.lower()):
+            return hash_password(plain_password) == stored_value
+        return plain_password == stored_value
+    except Exception:
+        return False
 
 def generate_jwt_token(user_id, username):
     """Genera token JWT per l'utente"""
@@ -195,7 +209,7 @@ def validate_millesimi_data(millesimi_list, num_unita):
 def calculate_ripartizione_completa(condominio_id):
     """Calcola la ripartizione completa per un condominio"""
     from models import Spesa, Persona
-    from database import get_db
+    from database_universal import get_db
 
     conn = get_db()
     cursor = conn.cursor()
@@ -398,7 +412,7 @@ def format_currency(amount):
 def generate_preventivo_anno(condominio_id, anno):
     """Genera preventivo per un anno basandosi sulle spese attuali"""
     from models import Spesa, Persona, PreventivoAnnuale
-    from database import get_db
+    from database_universal import get_db
 
     try:
         conn = get_db()
@@ -456,7 +470,7 @@ def generate_preventivo_anno(condominio_id, anno):
 def calculate_ripartizione_preventivo(condominio_id, anno, tabella_filter=None):
     """Calcola la ripartizione basata sulle spese preventivate per un anno"""
     from models import SpesaPreventivata, Persona, PreventivoAnnuale, RipartizionePreventivo
-    from database import get_db
+    from database_universal import get_db
 
     try:
         conn = get_db()

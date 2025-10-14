@@ -28,10 +28,35 @@ window.addEventListener('unhandledrejection', (e) => {
 });
 console.log('app.js loaded', new Date().toISOString());
 
-// Determina l'URL dell'API in base all'ambiente
-const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+// Global 401 handler: auto-logout on expired/invalid session
+(() => {
+  if (typeof window !== 'undefined' && typeof window.fetch === 'function') {
+    const originalFetch = window.fetch.bind(window);
+    window.fetch = async (...args) => {
+      const res = await originalFetch(...args);
+      if (res && res.status === 401) {
+        try {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+        } catch (_) {}
+        try { console.warn('Sessione scaduta, reindirizzo al login.'); } catch (_) {}
+        setTimeout(() => {
+          try { alert('Sessione scaduta. Effettua nuovamente il login.'); } catch (_) {}
+          window.location.reload();
+        }, 0);
+      }
+      return res;
+    };
+  }
+})();
+
+// Determina l'URL dell'API in modo dinamico
+const DEFAULT_API_BASE = `${window.location.origin}/api`;
+const API_BASE = window.API_BASE || window.__API_BASE__ ||
+  ((['localhost', '127.0.0.1'].includes(window.location.hostname))
     ? 'http://localhost:5000/api'
-    : `${window.location.protocol}//${window.location.hostname}/api`;
+    : DEFAULT_API_BASE);
+console.log('API_BASE resolved to:', API_BASE);
 
 // UTILITY FUNCTIONS
 const formatCurrency = (amount) => {
@@ -70,7 +95,13 @@ const api = {
         const response = await fetch(`${API_BASE}/condominii`, {
             headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
         });
-        return response.json();
+        let json;
+        try { json = await response.json(); } catch (_) { json = null; }
+        if (!response.ok) {
+            const msg = (json && json.message) ? json.message : `Errore ${response.status}`;
+            throw new Error(msg);
+        }
+        return json;
     },
 
     createCondominio: async (data) => {
@@ -741,8 +772,14 @@ const Dashboard = ({ user, onLogout, onSelectCondominio }) => {
     const loadCondominii = async () => {
         try {
             const data = await api.getCondominii();
-            setCondominii(data);
+            if (Array.isArray(data)) {
+                setCondominii(data);
+            } else {
+                setCondominii([]);
+                setMessage({ type: 'warning', text: (data && data.message) ? data.message : 'Nessun dato disponibile' });
+            }
         } catch (err) {
+            setCondominii([]);
             setMessage({ type: 'danger', text: 'Errore nel caricamento dei condominii' });
         } finally {
             setLoading(false);

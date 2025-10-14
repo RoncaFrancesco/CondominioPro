@@ -1,4 +1,4 @@
-from database import get_db
+from database_universal import get_db
 from datetime import datetime
 import json
 
