@@ -11,8 +11,8 @@ services:
     name: condominio-api
     env: python
     plan: free
-    buildCommand: pip install -r requirements.txt
-    startCommand: cd backend && gunicorn app:app
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: cd backend && python app.py
     envVars:
       - key: DATABASE_URL
         fromDatabase:
@@ -20,17 +20,3 @@ services:
           property: connectionString
       - key: FLASK_ENV
         value: production
-      - key: PYTHON_VERSION
-        value: 3.9.0
-      - key: PYTHONPATH
-        value: ./backend
-
-  # Frontend static files
-  - type: web
-    name: condominio-frontend
-    env: static
-    plan: free
-    buildCommand: echo "No build needed"
-    staticPublishPath: ./frontend
-    domains:
-      - condominio-frontend.onrender.com
