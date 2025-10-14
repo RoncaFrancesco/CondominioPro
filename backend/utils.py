@@ -4,7 +4,8 @@ import hashlib
 from datetime import datetime, timedelta
 from functools import wraps
 from flask import request, jsonify, current_app
-from models import User\nfrom database_universal import exec_sql
+from models import User
+from database_universal import exec_sql
 import json
 
 # Chiave segreta per JWT (usa env in produzione)
