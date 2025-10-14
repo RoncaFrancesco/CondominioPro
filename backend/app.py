@@ -15,7 +15,8 @@ from utils import (
     token_required, hash_password, verify_password, generate_jwt_token, verify_jwt_token,
     validate_login_data, validate_condominio_data, validate_persona_data,
     validate_spesa_data, validate_millesimi_data, calculate_ripartizione_completa,
-    calculate_ripartizione_preventivo, export_condominio_json, generate_preventivo_anno, log_error
+    calculate_ripartizione_preventivo, export_condominio_json, generate_preventivo_anno,
+    calcolo_analisi_anno_successivo, log_error
 )
 
 # Inizializza Flask
@@ -1507,6 +1508,33 @@ def get_calcolo_preventivo(condo_id, anno):
 
     except Exception as e:
         log_error(str(e), f'get_calcolo_preventivo {condo_id} {anno}')
+        return jsonify({'message': 'Errore del server'}), 500
+
+@app.route('/api/condominii/<int:condo_id>/analisi-anno-successivo', methods=['GET'])
+@token_required
+def get_analisi_anno_successivo(condo_id):
+    """Calcola analisi preventivi per l'anno successivo"""
+    try:
+        # Verifica proprietà condominio
+        condominio = Condominio.find_by_id(condo_id)
+        if not condominio:
+            return jsonify({'message': 'Condominio non trovato'}), 404
+        if condominio.user_id != request.current_user_id:
+            return jsonify({'message': 'Non autorizzato'}), 403
+
+        # Parametro opzionale anno di riferimento
+        anno_riferimento = request.args.get('anno_riferimento', type=int)
+
+        # Calcola analisi per l'anno successivo
+        analisi = calcolo_analisi_anno_successivo(condo_id, anno_riferimento)
+
+        return jsonify({
+            'message': 'Analisi anno successivo completata',
+            'data': analisi
+        }), 200
+
+    except Exception as e:
+        log_error(str(e), f'get_analisi_anno_successivo {condo_id}')
         return jsonify({'message': 'Errore del server'}), 500
 
 # ======================

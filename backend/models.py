@@ -172,31 +172,17 @@ class Condominio:
 
         try:
             if self.id:
+                # Aggiorna solo i campi esistenti nello schema attuale
                 exec_sql(cursor, """
-                    UPDATE condominii SET nome = ?, indirizzo = ?, num_unita = ?,
-                    anno_costruzione = ?, numero_scale = ?, presidente_assemblea = ?,
-                    responsabile = ?, telefono_responsabile = ?, email_responsabile = ?,
-                    amministratore_esterno = ?, partita_iva = ?, iban_condominio = ?,
-                    banca_appoggio = ?, descrizione_edificio = ?, note_interne = ?
+                    UPDATE condominii SET nome = ?, indirizzo = ?
                     WHERE id = ?
-                """, (self.nome, self.indirizzo, self.num_unita, self.anno_costruzione,
-                      self.numero_scale, self.presidente_assemblea, self.responsabile,
-                      self.telefono_responsabile, self.email_responsabile,
-                      self.amministratore_esterno, self.partita_iva, self.iban_condominio,
-                      self.banca_appoggio, self.descrizione_edificio, self.note_interne, self.id))
+                """, (self.nome, self.indirizzo, self.id))
             else:
+                # Inserisce solo le colonne esistenti nello schema attuale
                 exec_sql(cursor, """
-                    INSERT INTO condominii (user_id, nome, indirizzo, num_unita,
-                    anno_costruzione, numero_scale, presidente_assemblea, responsabile,
-                    telefono_responsabile, email_responsabile, amministratore_esterno,
-                    partita_iva, iban_condominio, banca_appoggio, descrizione_edificio,
-                    note_interne)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, (self.user_id, self.nome, self.indirizzo, self.num_unita,
-                      self.anno_costruzione, self.numero_scale, self.presidente_assemblea,
-                      self.responsabile, self.telefono_responsabile, self.email_responsabile,
-                      self.amministratore_esterno, self.partita_iva, self.iban_condominio,
-                      self.banca_appoggio, self.descrizione_edificio, self.note_interne))
+                    INSERT INTO condominii (user_id, nome, indirizzo, num_unita)
+                    VALUES (?, ?, ?, ?)
+                """, (self.user_id, self.nome, self.indirizzo, self.num_unita))
                 self.id = cursor.lastrowid
 
                 # Crea automaticamente le unità immobiliari

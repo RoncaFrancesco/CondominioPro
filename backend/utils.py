@@ -636,3 +636,272 @@ def log_error(error_message, context=None):
         f.write(log_entry + '\n')
 
 
+def calcolo_analisi_anno_successivo(condominio_id, anno_riferimento=None):
+    """Calcola analisi preventivi per l'anno successivo basandosi sui preventivi esistenti"""
+    from models import Persona, PreventivoAnnuale, SpesaPreventivata, UnitaImmobiliare
+    from database_universal import get_db
+
+    if anno_riferimento is None:
+        anno_riferimento = datetime.now().year
+
+    anno_successivo = anno_riferimento + 1
+
+    try:
+        conn = get_db()
+        cursor = conn.cursor()
+
+        # 1. Ottieni persone del condominio con numero unità
+        persone = Persona.get_by_condominio(condominio_id)
+        unita_immobiliari = UnitaImmobiliare.get_by_condominio(condominio_id)
+
+        # Mappa persona_id -> numero_unita
+        persona_unita_map = {}
+        for unita in unita_immobiliari:
+            for persona in persone:
+                if persona.unita_id == unita.id:
+                    persona_unita_map[persona.id] = unita.numero_unita
+
+        # 2. Ottieni spese preventivate per l'anno di riferimento (se esiste)
+        exec_sql(cursor, """
+            SELECT sp.* FROM spese_preventivate sp
+            JOIN preventivi_annuali p ON sp.preventivo_id = p.id
+            WHERE sp.condominio_id = ? AND p.anno = ?
+            ORDER BY sp.tabella_millesimi, sp.descrizione
+        """, (condominio_id, anno_riferimento))
+
+        spese_preventivate_riferimento = cursor.fetchall()
+
+        # 3. Se non ci sono spese preventivate per l'anno di riferimento,
+        # usa le spese effettive dell'anno corrente come base
+        if not spese_preventivate_riferimento:
+            exec_sql(cursor, """
+                SELECT * FROM spese
+                WHERE condominio_id = ? AND strftime('%Y', data_spesa) = ?
+                ORDER BY tabella_millesimi, descrizione
+            """, (condominio_id, str(anno_riferimento)))
+
+            spese_effettive = cursor.fetchall()
+
+            # Converti spese effettive in formato simile a spese preventivate
+            spese_base = []
+            for spesa in spese_effettive:
+                spese_base.append({
+                    'descrizione': spesa['descrizione'],
+                    'importo_previsto': spesa['importo'],
+                    'tabella_millesimi': spesa['tabella_millesimi'],
+                    'logica_pi': spesa['logica_pi'],
+                    'percentuale_proprietario': spesa['percentuale_proprietario'],
+                    'percentuale_inquilino': spesa['percentuale_inquilino']
+                })
+        else:
+            spese_base = spese_preventivate_riferimento
+
+        if not spese_base:
+            conn.close()
+            return {
+                'anno_successivo': anno_successivo,
+                'totale_previsto': 0,
+                'analisi_per_persona': [],
+                'analisi_per_tabella': {},
+                'riepilogo': {
+                    'totale_proprietari': 0,
+                    'totale_inquilini': 0,
+                    'totale_generale': 0,
+                    'numero_proprietari': 0,
+                    'numero_inquilini': 0
+                },
+                'note': 'Nessuna spesa trovata per l\'anno di riferimento'
+            }
+
+        # 4. Calcola ripartizione per ogni persona usando le stesse logiche del preventivo
+        analisi_per_persona = []
+        analisi_per_tabella = {}
+        totale_generale = 0
+        totale_proprietari = 0
+        totale_inquilini = 0
+
+        # Raggruppa spese per tabella
+        spese_per_tabella = {}
+        for spesa in spese_base:
+            tabella = spesa['tabella_millesimi']
+            if tabella not in spese_per_tabella:
+                spese_per_tabella[tabella] = []
+            spese_per_tabella[tabella].append(spesa)
+
+        # Calcola per ogni tabella
+        for tabella, spese_tabella in spese_per_tabella.items():
+            totale_tabella = sum(spesa['importo_previsto'] for spesa in spese_tabella)
+            analisi_per_tabella[tabella] = {
+                'tabella': tabella,
+                'totale_tabella': totale_tabella,
+                'ripartizioni': []
+            }
+
+            # Ottieni millesimi per questa tabella
+            exec_sql(cursor, """
+                SELECT p.id as persona_id, p.nome, p.cognome, p.tipo_persona,
+                       ui.numero_unita, m.valore as millesimi
+                FROM persone p
+                JOIN unita_immobiliari ui ON p.unita_id = ui.id
+                LEFT JOIN millesimi m ON ui.id = m.unita_id AND m.tabella = ?
+                WHERE p.condominio_id = ?
+                ORDER BY ui.numero_unita
+            """, (tabella, condominio_id))
+
+            persone_con_millesimi = cursor.fetchall()
+
+            # Calcola ruoli presenti per unità
+            unita_ruoli = {}
+            ruolo_counts = {}
+            for p in persone_con_millesimi:
+                if not p['millesimi']:
+                    continue
+                uid = p['unita_id']
+                unita_ruoli.setdefault(uid, set())
+                ruolo_counts.setdefault(uid, {'proprietario': 0, 'inquilino': 0, 'both': 0})
+                if p['tipo_persona'] == 'proprietario_inquilino':
+                    unita_ruoli[uid].update({'proprietario', 'inquilino'})
+                    ruolo_counts[uid]['both'] += 1
+                elif p['tipo_persona'] in ('proprietario', 'inquilino'):
+                    unita_ruoli[uid].add(p['tipo_persona'])
+                    ruolo_counts[uid][p['tipo_persona']] += 1
+
+            # Calcola ripartizione per ogni spesa della tabella
+            ripartizione_tabella = {p['persona_id']: 0 for p in persone_con_millesimi if p['millesimi']}
+
+            for spesa in spese_tabella:
+                for persona in persone_con_millesimi:
+                    if not persona['millesimi']:
+                        continue
+
+                    # Calcola percentuale in base alla logica P/I
+                    if spesa['logica_pi'] == 'proprietario':
+                        if persona['tipo_persona'] in ['proprietario', 'proprietario_inquilino']:
+                            percentuale = 100
+                        else:
+                            percentuale = 0
+                    elif spesa['logica_pi'] == 'inquilino':
+                        if persona['tipo_persona'] in ['inquilino', 'proprietario_inquilino']:
+                            percentuale = 100
+                        else:
+                            percentuale = 0
+                    elif spesa['logica_pi'] == '50/50':
+                        if persona['tipo_persona'] == 'proprietario_inquilino':
+                            percentuale = 100
+                        else:
+                            ruoli_presenti = unita_ruoli.get(persona['unita_id'], set())
+                            if 'proprietario' in ruoli_presenti and 'inquilino' in ruoli_presenti:
+                                percentuale = 50
+                            else:
+                                percentuale = 100
+                    else:  # personalizzato
+                        if persona['tipo_persona'] == 'proprietario_inquilino':
+                            percentuale = spesa['percentuale_proprietario'] + spesa['percentuale_inquilino']
+                        elif persona['tipo_persona'] == 'proprietario':
+                            percentuale = spesa['percentuale_proprietario']
+                        else:  # inquilino
+                            percentuale = spesa['percentuale_inquilino']
+
+                    # Divisione intra-ruolo
+                    quota_divisore = 1
+                    uid = persona['unita_id']
+                    if persona['tipo_persona'] == 'proprietario':
+                        quota_divisore = max(1, ruolo_counts.get(uid, {}).get('proprietario', 1))
+                    elif persona['tipo_persona'] == 'inquilino':
+                        quota_divisore = max(1, ruolo_counts.get(uid, {}).get('inquilino', 1))
+
+                    # Calcola importo dovuto per questa spesa
+                    importo_dovuto = (spesa['importo_previsto'] * persona['millesimi'] * (percentuale / 100)) / 1000
+                    importo_dovuto = importo_dovuto / quota_divisore
+
+                    ripartizione_tabella[persona['persona_id']] += importo_dovuto
+
+            # Aggiungi risultati della tabella
+            for persona_id, importo_tabella in ripartizione_tabella.items():
+                if importo_tabella > 0:
+                    persona = next((p for p in persone_con_millesimi if p['persona_id'] == persona_id), None)
+                    if persona:
+                        analisi_per_tabella[tabella]['ripartizioni'].append({
+                            'persona_id': persona_id,
+                            'nome': persona['nome'],
+                            'cognome': persona['cognome'],
+                            'tipo_persona': persona['tipo_persona'],
+                            'numero_unita': persona['numero_unita'],
+                            'importo_tabella': round(importo_tabella, 2)
+                        })
+
+        # Calcola totali per persona aggregando tutte le tabelle
+        persona_totale_map = {}
+        for tabella_data in analisi_per_tabella.values():
+            for ripartizione in tabella_data['ripartizioni']:
+                persona_id = ripartizione['persona_id']
+                if persona_id not in persona_totale_map:
+                    persona_info = next((p for p in persone if p.id == persona_id), None)
+                    if persona_info:
+                        persona_totale_map[persona_id] = {
+                            'persona_id': persona_id,
+                            'nome': persona_info.nome,
+                            'cognome': persona_info.cognome,
+                            'tipo_persona': persona_info.tipo_persona,
+                            'numero_unita': persona_unita_map.get(persona_id, 0),
+                            'importo_totale': 0,
+                            'dettaglio_tabelle': []
+                        }
+
+                if persona_id in persona_totale_map:
+                    persona_totale_map[persona_id]['importo_totale'] += ripartizione['importo_tabella']
+                    persona_totale_map[persona_id]['dettaglio_tabelle'].append({
+                        'tabella': tabella_data['tabella'],
+                        'importo': ripartizione['importo_tabella']
+                    })
+
+                    # Aggiorna totali generali
+                    totale_generale += ripartizione['importo_tabella']
+                    if persona_totale_map[persona_id]['tipo_persona'] in ['proprietario', 'proprietario_inquilino']:
+                        totale_proprietari += ripartizione['importo_tabella']
+                    if persona_totale_map[persona_id]['tipo_persona'] in ['inquilino', 'proprietario_inquilino']:
+                        totale_inquilini += ripartizione['importo_tabella']
+
+        # Prepara lista finale per persone
+        analisi_per_persona = list(persona_totale_map.values())
+        for persona in analisi_per_persona:
+            persona['importo_totale'] = round(persona['importo_totale'], 2)
+            for dettaglio in persona['dettaglio_tabelle']:
+                dettaglio['importo'] = round(dettaglio['importo'], 2)
+
+        # Calcola statistiche finali
+        numero_proprietari = len([p for p in analisi_per_persona if p['tipo_persona'] in ['proprietario', 'proprietario_inquilino']])
+        numero_inquilini = len([p for p in analisi_per_persona if p['tipo_persona'] in ['inquilino', 'proprietario_inquilino']])
+
+        conn.close()
+
+        return {
+            'anno_successivo': anno_successivo,
+            'anno_riferimento': anno_riferimento,
+            'totale_previsto': round(totale_generale, 2),
+            'analisi_per_persona': sorted(analisi_per_persona, key=lambda x: (x['numero_unita'], x['cognome'], x['nome'])),
+            'analisi_per_tabella': analisi_per_tabella,
+            'riepilogo': {
+                'totale_proprietari': round(totale_proprietari, 2),
+                'totale_inquilini': round(totale_inquilini, 2),
+                'totale_generale': round(totale_generale, 2),
+                'numero_proprietari': numero_proprietari,
+                'numero_inquilini': numero_inquilini,
+                'media_per_proprietario': round(totale_proprietari / numero_proprietari, 2) if numero_proprietari > 0 else 0,
+                'media_per_inquilino': round(totale_inquilini / numero_inquilini, 2) if numero_inquilini > 0 else 0
+            },
+            'fonte_dati': 'spese_preventivate' if spese_preventivate_riferimento else 'spese_effettive',
+            'note': f'Analisi basata su {"spese preventivate" if spese_preventivate_riferimento else "spese effettive"} dell\'anno {anno_riferimento}'
+        }
+
+    except Exception as e:
+        log_error(f"Errore nel calcolo analisi anno successivo: {str(e)}", f"calcolo_analisi_anno_successivo {condominio_id}")
+        # Chiudi la connessione se ancora aperta
+        try:
+            if 'conn' in locals() and conn:
+                conn.close()
+        except:
+            pass
+        raise e
+
+

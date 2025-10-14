@@ -294,6 +294,16 @@ const api = {
         return response.json();
     },
 
+    getAnalisiAnnoSuccessivo: async (condoId, annoRiferimento = null) => {
+        const url = annoRiferimento
+            ? `${API_BASE}/condominii/${condoId}/analisi-anno-successivo?anno_riferimento=${annoRiferimento}`
+            : `${API_BASE}/condominii/${condoId}/analisi-anno-successivo`;
+        const response = await fetch(url, {
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        });
+        return response.json();
+    },
+
     // Stampa Word
     stampaSpese: async (condoId, tabellaFilter = null) => {
         const url = tabellaFilter ? `${API_BASE}/condominii/${condoId}/stampa/spese?tabella=${tabellaFilter}` : `${API_BASE}/condominii/${condoId}/stampa/spese`;
@@ -1247,6 +1257,392 @@ const SezioneCondominio = ({ section, condominio, onBack, showMessage }) => {
                 )
             );
     }
+};
+
+// CALCOLO ANNO SUCCESSIVO COMPONENT
+const CalcoloAnnoSuccessivo = ({ condominio, showMessage }) => {
+    const [annoRiferimento, setAnnoRiferimento] = React.useState(new Date().getFullYear());
+    const [analisi, setAnalisi] = React.useState(null);
+    const [loading, setLoading] = React.useState(false);
+    const [error, setError] = React.useState(null);
+
+    React.useEffect(() => {
+        if (condominio && condominio.id) {
+            caricaAnalisi();
+        }
+    }, [condominio, annoRiferimento]);
+
+    const caricaAnalisi = async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const result = await api.getAnalisiAnnoSuccessivo(condominio.id, annoRiferimento);
+            if (result.message && result.data) {
+                setAnalisi(result.data);
+            } else {
+                setError('Dati non disponibili');
+            }
+        } catch (err) {
+            console.error('Errore caricamento analisi:', err);
+            setError(err.message || 'Errore nel caricamento dei dati');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const getTipoPersonaLabel = (tipo) => {
+        switch (tipo) {
+            case 'proprietario': return 'Proprietario';
+            case 'inquilino': return 'Inquilino';
+            case 'proprietario_inquilino': return 'Proprietario/Inquilino';
+            default: return tipo;
+        }
+    };
+
+    const getTipoPersonaColor = (tipo) => {
+        switch (tipo) {
+            case 'proprietario': return '#007bff';
+            case 'inquilino': return '#28a745';
+            case 'proprietario_inquilino': return '#6f42c1';
+            default: return '#6c757d';
+        }
+    };
+
+    if (loading) {
+        return React.createElement('div', { className: 'container' },
+            React.createElement('div', { className: 'header' },
+                React.createElement('h1', null, `Calcolo Anno Successivo - ${condominio.nome}`)
+            ),
+            React.createElement('div', { className: 'card', style: { textAlign: 'center', padding: '40px' } },
+                React.createElement('div', { className: 'loading' }, '⏳ Caricamento analisi...')
+            )
+        );
+    }
+
+    if (error) {
+        return React.createElement('div', { className: 'container' },
+            React.createElement('div', { className: 'header' },
+                React.createElement('button', {
+                    className: 'btn btn-secondary',
+                    onClick: () => window.location.reload()
+                }, ' Indietro'),
+                React.createElement('h1', null, `Calcolo Anno Successivo - ${condominio.nome}`)
+            ),
+            React.createElement('div', { className: 'card' },
+                React.createElement('div', { style: { textAlign: 'center', padding: '40px' } },
+                    React.createElement('h2', { style: { color: '#dc3545' } }, '❌ Errore'),
+                    React.createElement('p', { style: { color: '#666' } }, error),
+                    React.createElement('button', {
+                        className: 'btn btn-primary',
+                        onClick: caricaAnalisi
+                    }, 'Riprova')
+                )
+            )
+        );
+    }
+
+    if (!analisi) {
+        return React.createElement('div', { className: 'container' },
+            React.createElement('div', { className: 'header' },
+                React.createElement('button', {
+                    className: 'btn btn-secondary',
+                    onClick: () => window.location.reload()
+                }, ' Indietro'),
+                React.createElement('h1', null, `Calcolo Anno Successivo - ${condominio.nome}`)
+            ),
+            React.createElement('div', { className: 'card' },
+                React.createElement('div', { style: { textAlign: 'center', padding: '40px' } },
+                    React.createElement('p', { style: { color: '#666' } }, 'Nessun dato disponibile')
+                )
+            )
+        );
+    }
+
+    return React.createElement('div', { className: 'container' },
+        React.createElement('div', { className: 'header' },
+            React.createElement('button', {
+                className: 'btn btn-secondary',
+                onClick: () => window.location.reload()
+            }, ' Indietro'),
+            React.createElement('h1', null, `Calcolo Anno Successivo - ${condominio.nome}`)
+        ),
+
+        // Controlli
+        React.createElement('div', { className: 'card' },
+            React.createElement('h2', null, '⚙️ Parametri di Calcolo'),
+            React.createElement('div', { style: { display: 'flex', gap: '20px', alignItems: 'center', flexWrap: 'wrap' } },
+                React.createElement('div', null,
+                    React.createElement('label', { htmlFor: 'annoRiferimento' }, 'Anno di Riferimento:'),
+                    React.createElement('input', {
+                        type: 'number',
+                        id: 'annoRiferimento',
+                        value: annoRiferimento,
+                        onChange: (e) => setAnnoRiferimento(parseInt(e.target.value)),
+                        min: '2020',
+                        max: '2030',
+                        style: { marginLeft: '10px', padding: '5px' }
+                    })
+                ),
+                React.createElement('div', { style: { flex: 1, textAlign: 'right' } },
+                    React.createElement('button', {
+                        className: 'btn btn-primary',
+                        onClick: caricaAnalisi,
+                        disabled: loading
+                    }, loading ? '⏳ Calcolo...' : '🔄 Ricalcola')
+                )
+            )
+        ),
+
+        // Riepilogo Generale
+        React.createElement('div', { className: 'card' },
+            React.createElement('h2', null, '📊 Riepilogo Analisi'),
+            React.createElement('div', { style: {
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                gap: '20px',
+                marginBottom: '20px'
+            } },
+                React.createElement('div', { style: {
+                    background: '#e3f2fd',
+                    padding: '15px',
+                    borderRadius: '8px',
+                    textAlign: 'center'
+                } },
+                    React.createElement('h3', { style: { margin: '0 0 10px 0', color: '#1976d2' } }, 'Anno Successivo'),
+                    React.createElement('div', { style: { fontSize: '24px', fontWeight: 'bold' } }, analisi.anno_successivo)
+                ),
+                React.createElement('div', { style: {
+                    background: '#f3e5f5',
+                    padding: '15px',
+                    borderRadius: '8px',
+                    textAlign: 'center'
+                } },
+                    React.createElement('h3', { style: { margin: '0 0 10px 0', color: '#7b1fa2' } }, 'Anno Riferimento'),
+                    React.createElement('div', { style: { fontSize: '24px', fontWeight: 'bold' } }, analisi.anno_riferimento)
+                ),
+                React.createElement('div', { style: {
+                    background: '#e8f5e8',
+                    padding: '15px',
+                    borderRadius: '8px',
+                    textAlign: 'center'
+                } },
+                    React.createElement('h3', { style: { margin: '0 0 10px 0', color: '#2e7d32' } }, 'Totale Preventivato'),
+                    React.createElement('div', { style: { fontSize: '24px', fontWeight: 'bold', color: '#2e7d32' } }, formatCurrency(analisi.totale_previsto))
+                ),
+                React.createElement('div', { style: {
+                    background: '#fff3e0',
+                    padding: '15px',
+                    borderRadius: '8px',
+                    textAlign: 'center'
+                } },
+                    React.createElement('h3', { style: { margin: '0 0 10px 0', color: '#f57c00' } }, 'Fonte Dati'),
+                    React.createElement('div', { style: { fontSize: '16px', fontWeight: 'bold' } }, analisi.fonte_dati.replace('_', ' '))
+                )
+            ),
+            React.createElement('div', { style: {
+                background: '#f8f9fa',
+                padding: '15px',
+                borderRadius: '8px',
+                borderLeft: '4px solid #17a2b8'
+            } },
+                React.createElement('p', { style: { margin: 0, color: '#495057' } }, '📝 ', analisi.note)
+            )
+        ),
+
+        // Statistiche Generali
+        React.createElement('div', { className: 'card' },
+            React.createElement('h2', null, '📈 Statistiche Generali'),
+            React.createElement('div', { style: {
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+                gap: '20px'
+            } },
+                React.createElement('div', { style: {
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    color: 'white',
+                    padding: '20px',
+                    borderRadius: '12px',
+                    textAlign: 'center'
+                } },
+                    React.createElement('h4', { style: { margin: '0 0 15px 0' } }, 'Totale Proprietari'),
+                    React.createElement('div', { style: { fontSize: '28px', fontWeight: 'bold' } }, formatCurrency(analisi.riepilogo.totale_proprietari)),
+                    React.createElement('div', { style: { fontSize: '14px', opacity: 0.9 } }, `${analisi.riepilogo.numero_proprietari} proprietari`)
+                ),
+                React.createElement('div', { style: {
+                    background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+                    color: 'white',
+                    padding: '20px',
+                    borderRadius: '12px',
+                    textAlign: 'center'
+                } },
+                    React.createElement('h4', { style: { margin: '0 0 15px 0' } }, 'Totale Inquilini'),
+                    React.createElement('div', { style: { fontSize: '28px', fontWeight: 'bold' } }, formatCurrency(analisi.riepilogo.totale_inquilini)),
+                    React.createElement('div', { style: { fontSize: '14px', opacity: 0.9 } }, `${analisi.riepilogo.numero_inquilini} inquilini`)
+                ),
+                React.createElement('div', { style: {
+                    background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+                    color: 'white',
+                    padding: '20px',
+                    borderRadius: '12px',
+                    textAlign: 'center'
+                } },
+                    React.createElement('h4', { style: { margin: '0 0 15px 0' } }, 'Media per Proprietario'),
+                    React.createElement('div', { style: { fontSize: '28px', fontWeight: 'bold' } }, formatCurrency(analisi.riepilogo.media_per_proprietario))
+                ),
+                React.createElement('div', { style: {
+                    background: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
+                    color: 'white',
+                    padding: '20px',
+                    borderRadius: '12px',
+                    textAlign: 'center'
+                } },
+                    React.createElement('h4', { style: { margin: '0 0 15px 0' } }, 'Media per Inquilino'),
+                    React.createElement('div', { style: { fontSize: '28px', fontWeight: 'bold' } }, formatCurrency(analisi.riepilogo.media_per_inquilino))
+                )
+            )
+        ),
+
+        // Analisi per Persona
+        analisi.analisi_per_persona && analisi.analisi_per_persona.length > 0 ?
+        React.createElement('div', { className: 'card' },
+            React.createElement('h2', null, '👥 Analisi per Persona'),
+            React.createElement('div', { style: { overflowX: 'auto' } },
+                React.createElement('table', {
+                    className: 'table table-striped',
+                    style: { minWidth: '800px', fontSize: '14px' }
+                },
+                    React.createElement('thead', null,
+                        React.createElement('tr', null,
+                            React.createElement('th', null, 'Unità'),
+                            React.createElement('th', null, 'Nome'),
+                            React.createElement('th', null, 'Tipo'),
+                            React.createElement('th', { style: { textAlign: 'right' } }, 'Importo Totale'),
+                            React.createElement('th', null, 'Dettaglio Tabelle')
+                        )
+                    ),
+                    React.createElement('tbody', null,
+                        analisi.analisi_per_persona.map((persona, idx) =>
+                            React.createElement('tr', { key: persona.persona_id },
+                                React.createElement('td', { style: { fontWeight: 'bold' } }, persona.numero_unita),
+                                React.createElement('td', null, `${persona.cognome} ${persona.nome}`),
+                                React.createElement('td', null,
+                                    React.createElement('span', {
+                                        style: {
+                                            background: getTipoPersonaColor(persona.tipo_persona),
+                                            color: 'white',
+                                            padding: '3px 8px',
+                                            borderRadius: '12px',
+                                            fontSize: '12px',
+                                            fontWeight: 'bold'
+                                        }
+                                    }, getTipoPersonaLabel(persona.tipo_persona))
+                                ),
+                                React.createElement('td', {
+                                    style: {
+                                        textAlign: 'right',
+                                        fontWeight: 'bold',
+                                        fontSize: '16px',
+                                        color: '#2c3e50'
+                                    } }, formatCurrency(persona.importo_totale)),
+                                React.createElement('td', null,
+                                    React.createElement('div', { style: { fontSize: '12px' } },
+                                        persona.dettaglio_tabelle.map(dettaglio =>
+                                            React.createElement('span', {
+                                                key: dettaglio.tabella,
+                                                style: {
+                                                    display: 'inline-block',
+                                                    margin: '2px',
+                                                    padding: '2px 6px',
+                                                    background: '#e9ecef',
+                                                    borderRadius: '4px',
+                                                    fontSize: '11px'
+                                                }
+                                            }, `${dettaglio.tabella}: ${formatCurrency(dettaglio.importo)}`)
+                                        )
+                                    )
+                                )
+                            )
+                        )
+                    )
+                )
+            )
+        ) : null,
+
+        // Analisi per Tabella
+        Object.keys(analisi.analisi_per_tabella).length > 0 ?
+        React.createElement('div', { className: 'card' },
+            React.createElement('h2', null, '📋 Analisi per Tabella Millesimi'),
+            Object.entries(analisi.analisi_per_tabella).map(([tabella, dati]) =>
+                React.createElement('div', {
+                    key: tabella,
+                    style: {
+                        marginBottom: '30px',
+                        padding: '20px',
+                        border: '1px solid #dee2e6',
+                        borderRadius: '8px',
+                        background: '#f8f9fa'
+                    } },
+                    React.createElement('h3', { style: {
+                        color: '#495057',
+                        marginBottom: '15px',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center'
+                    } },
+                        `Tabella Millesimi: ${tabella}`,
+                        React.createElement('span', {
+                            style: {
+                                background: '#007bff',
+                                color: 'white',
+                                padding: '5px 10px',
+                                borderRadius: '15px',
+                                fontSize: '14px',
+                                fontWeight: 'bold'
+                            }
+                        }, `Totale: ${formatCurrency(dati.totale_tabella)}`)
+                    ),
+                    React.createElement('div', { style: { overflowX: 'auto' } },
+                        React.createElement('table', {
+                            className: 'table table-sm',
+                            style: { fontSize: '13px' }
+                        },
+                            React.createElement('thead', null,
+                                React.createElement('tr', null,
+                                    React.createElement('th', null, 'Unità'),
+                                    React.createElement('th', null, 'Nome'),
+                                    React.createElement('th', null, 'Tipo'),
+                                    React.createElement('th', { style: { textAlign: 'right' } }, 'Importo')
+                                )
+                            ),
+                            React.createElement('tbody', null,
+                                dati.ripartizioni.map((rip) =>
+                                    React.createElement('tr', { key: rip.persona_id },
+                                        React.createElement('td', null, rip.numero_unita),
+                                        React.createElement('td', null, `${rip.cognome} ${rip.nome}`),
+                                        React.createElement('td', null,
+                                            React.createElement('span', {
+                                                style: {
+                                                    background: getTipoPersonaColor(rip.tipo_persona),
+                                                    color: 'white',
+                                                    padding: '2px 6px',
+                                                    borderRadius: '8px',
+                                                    fontSize: '11px',
+                                                    fontWeight: 'bold'
+                                                }
+                                            }, getTipoPersonaLabel(rip.tipo_persona))
+                                        ),
+                                        React.createElement('td', {
+                                            style: { textAlign: 'right', fontWeight: 'bold' }
+                                        }, formatCurrency(rip.importo_tabella))
+                                    )
+                                )
+                            )
+                        )
+                    )
+                )
+            )
+        ) : null
+    );
 };
 
 // GESTIONE PERSONE COMPONENT
