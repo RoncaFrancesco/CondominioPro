@@ -29,6 +29,22 @@ if cors_origins:
 else:
     CORS(app)
 
+# Assicura UTF-8 nei JSON e nelle risposte testuali
+try:
+    app.config['JSON_AS_ASCII'] = False
+except Exception:
+    pass
+
+@app.after_request
+def ensure_charset(response):
+    try:
+        ct = response.headers.get('Content-Type', '')
+        if ct.startswith('text/') and 'charset=' not in ct:
+            response.headers['Content-Type'] = f"{ct}; charset=utf-8"
+    except Exception:
+        pass
+    return response
+
 # Inizializza database all'avvio
 with app.app_context():
     init_db()

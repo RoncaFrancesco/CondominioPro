@@ -1,4 +1,4 @@
-import os
+﻿import os
 import jwt
 import hashlib
 from datetime import datetime, timedelta
@@ -19,7 +19,7 @@ def verify_password(plain_password, stored_value):
     """Verifica password: compatibile con valori in chiaro e SHA-256.
 
     - Se la password salvata ha lunghezza 64 (hex SHA-256), confronta l'hash.
-    - Altrimenti, confronta in chiaro per compatibilità con vecchi utenti.
+    - Altrimenti, confronta in chiaro per compatibilitÃ  con vecchi utenti.
     """
     try:
         if isinstance(stored_value, str) and len(stored_value) == 64 and all(c in "0123456789abcdef" for c in stored_value.lower()):
@@ -104,9 +104,9 @@ def validate_condominio_data(data):
         errors.append('Nome condominio deve avere almeno 2 caratteri')
 
     if not data.get('num_unita'):
-        errors.append('Numero unità obbligatorio')
+        errors.append('Numero unitÃ  obbligatorio')
     elif not isinstance(data.get('num_unita'), int) or data.get('num_unita') < 1:
-        errors.append('Numero unità deve essere un numero positivo')
+        errors.append('Numero unitÃ  deve essere un numero positivo')
 
     return errors
 
@@ -125,7 +125,7 @@ def validate_persona_data(data):
         errors.append('Cognome deve avere almeno 2 caratteri')
 
     if not data.get('unita_id'):
-        errors.append('Unità immobiliare obbligatoria')
+        errors.append('UnitÃ  immobiliare obbligatoria')
 
     if not data.get('tipo_persona'):
         errors.append('Tipo persona obbligatorio')
@@ -184,7 +184,7 @@ def validate_millesimi_data(millesimi_list, num_unita):
         return errors
 
     if len(millesimi_list) != num_unita:
-        errors.append(f'Numero millesimi ({len(millesimi_list)}) non corrisponde al numero di unità ({num_unita})')
+        errors.append(f'Numero millesimi ({len(millesimi_list)}) non corrisponde al numero di unitÃ  ({num_unita})')
 
     totale = 0
     for i, millesimo in enumerate(millesimi_list):
@@ -193,7 +193,7 @@ def validate_millesimi_data(millesimi_list, num_unita):
             continue
 
         if 'unita_id' not in millesimo:
-            errors.append(f'Unità ID mancante per millesimo {i+1}')
+            errors.append(f'UnitÃ  ID mancante per millesimo {i+1}')
 
         if 'valore' not in millesimo:
             errors.append(f'Valore mancante per millesimo {i+1}')
@@ -243,7 +243,7 @@ def calculate_ripartizione_completa(condominio_id):
 
         persone_con_millesimi = cursor.fetchall()
 
-        # Precalcola presenza ruoli e conteggi per unità (per dividere correttamente tra più persone dello stesso ruolo)
+        # Precalcola presenza ruoli e conteggi per unitÃ  (per dividere correttamente tra piÃ¹ persone dello stesso ruolo)
         unita_ruoli = {}
         ruolo_counts = {}
         for p in persone_con_millesimi:
@@ -275,11 +275,11 @@ def calculate_ripartizione_completa(condominio_id):
                 else:
                     percentuale = 0
             elif spesa.logica_pi == '50/50':
-                # Se è una persona che ricopre entrambi i ruoli, paga il 100%
+                # Se Ã¨ una persona che ricopre entrambi i ruoli, paga il 100%
                 if persona['tipo_persona'] == 'proprietario_inquilino':
                     percentuale = 100
                 else:
-                    # Se nell'unità sono presenti entrambi i ruoli, paga il 50%
+                    # Se nell'unitÃ  sono presenti entrambi i ruoli, paga il 50%
                     ruoli_presenti = unita_ruoli.get(persona['unita_id'], set())
                     if 'proprietario' in ruoli_presenti and 'inquilino' in ruoli_presenti:
                         percentuale = 50
@@ -295,8 +295,8 @@ def calculate_ripartizione_completa(condominio_id):
                 else:  # inquilino
                     percentuale = spesa.percentuale_inquilino
 
-            # Ripartizione intra-ruolo: se ci sono più persone dello stesso ruolo nella stessa unità,
-            # divide la quota tra loro in parti uguali (escluso il caso 'proprietario_inquilino' che già paga il 100%).
+            # Ripartizione intra-ruolo: se ci sono piÃ¹ persone dello stesso ruolo nella stessa unitÃ ,
+            # divide la quota tra loro in parti uguali (escluso il caso 'proprietario_inquilino' che giÃ  paga il 100%).
             quota_divisore = 1
             uid = persona['unita_id']
             if persona['tipo_persona'] == 'proprietario':
@@ -408,8 +408,7 @@ def export_condominio_json(condominio_id):
 
 def format_currency(amount):
     """Formatta importo in Euro"""
-    return f"€{amount:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
-
+    return f"\u20AC {amount:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
 def generate_preventivo_anno(condominio_id, anno):
     """Genera preventivo per un anno basandosi sulle spese attuali"""
     from models import Spesa, Persona, PreventivoAnnuale
@@ -518,7 +517,7 @@ def calculate_ripartizione_preventivo(condominio_id, anno, tabella_filter=None):
 
             persone_con_millesimi = cursor.fetchall()
 
-            # Precalcola presenza ruoli e conteggi per unità (per suddividere correttamente quote intra-ruolo)
+            # Precalcola presenza ruoli e conteggi per unitÃ  (per suddividere correttamente quote intra-ruolo)
             unita_ruoli = {}
             ruolo_counts = {}
             for p in persone_con_millesimi:
@@ -567,7 +566,7 @@ def calculate_ripartizione_preventivo(condominio_id, anno, tabella_filter=None):
                     else:  # inquilino
                         percentuale = spesa.percentuale_inquilino
 
-                # Divisione intra-ruolo tra più persone della stessa unità
+                # Divisione intra-ruolo tra piÃ¹ persone della stessa unitÃ 
                 quota_divisore = 1
                 uid = persona['unita_id']
                 if persona['tipo_persona'] == 'proprietario':
@@ -623,7 +622,7 @@ def calculate_ripartizione_preventivo(condominio_id, anno, tabella_filter=None):
         raise e
 
 def log_error(error_message, context=None):
-    """Log degli errori (in produzione potrebbe usare un sistema di logging più robusto)"""
+    """Log degli errori (in produzione potrebbe usare un sistema di logging piÃ¹ robusto)"""
     timestamp = datetime.now().isoformat()
     log_entry = f"[{timestamp}] ERROR: {error_message}"
     if context:
@@ -650,7 +649,7 @@ def calcolo_analisi_anno_successivo(condominio_id, anno_riferimento=None):
         conn = get_db()
         cursor = conn.cursor()
 
-        # 1. Ottieni persone del condominio con numero unità
+        # 1. Ottieni persone del condominio con numero unitÃ 
         persone = Persona.get_by_condominio(condominio_id)
         unita_immobiliari = UnitaImmobiliare.get_by_condominio(condominio_id)
 
@@ -674,11 +673,19 @@ def calcolo_analisi_anno_successivo(condominio_id, anno_riferimento=None):
         # 3. Se non ci sono spese preventivate per l'anno di riferimento,
         # usa le spese effettive dell'anno corrente come base
         if not spese_preventivate_riferimento:
-            exec_sql(cursor, """
+            from database_universal import IS_POSTGRES
+            sql_spese = """
                 SELECT * FROM spese
                 WHERE condominio_id = ? AND strftime('%Y', data_spesa) = ?
                 ORDER BY tabella_millesimi, descrizione
-            """, (condominio_id, str(anno_riferimento)))
+            """
+            if IS_POSTGRES:
+                sql_spese = """
+                    SELECT * FROM spese
+                    WHERE condominio_id = ? AND EXTRACT(YEAR FROM data_spesa) = ?
+                    ORDER BY tabella_millesimi, descrizione
+                """
+            exec_sql(cursor, sql_spese, (condominio_id, str(anno_riferimento)))
 
             spese_effettive = cursor.fetchall()
 
@@ -698,9 +705,7 @@ def calcolo_analisi_anno_successivo(condominio_id, anno_riferimento=None):
 
         if not spese_base:
             conn.close()
-            return {
-                'anno_successivo': anno_successivo,
-                'totale_previsto': 0,
+            return { 'anno_successivo': anno_successivo, 'anno_riferimento': anno_riferimento, 'totale_previsto': 0,
                 'analisi_per_persona': [],
                 'analisi_per_tabella': {},
                 'riepilogo': {
@@ -710,8 +715,7 @@ def calcolo_analisi_anno_successivo(condominio_id, anno_riferimento=None):
                     'numero_proprietari': 0,
                     'numero_inquilini': 0
                 },
-                'note': 'Nessuna spesa trovata per l\'anno di riferimento'
-            }
+                'fonte_dati': 'nessun_dato', 'note': 'Nessuna spesa trovata per l\'anno di riferimento' }
 
         # 4. Calcola ripartizione per ogni persona usando le stesse logiche del preventivo
         analisi_per_persona = []
@@ -740,7 +744,7 @@ def calcolo_analisi_anno_successivo(condominio_id, anno_riferimento=None):
             # Ottieni millesimi per questa tabella
             exec_sql(cursor, """
                 SELECT p.id as persona_id, p.nome, p.cognome, p.tipo_persona,
-                       ui.numero_unita, m.valore as millesimi
+                       ui.id as unita_id, ui.numero_unita, m.valore as millesimi
                 FROM persone p
                 JOIN unita_immobiliari ui ON p.unita_id = ui.id
                 LEFT JOIN millesimi m ON ui.id = m.unita_id AND m.tabella = ?
@@ -750,7 +754,7 @@ def calcolo_analisi_anno_successivo(condominio_id, anno_riferimento=None):
 
             persone_con_millesimi = cursor.fetchall()
 
-            # Calcola ruoli presenti per unità
+            # Calcola ruoli presenti per unitÃ 
             unita_ruoli = {}
             ruolo_counts = {}
             for p in persone_con_millesimi:
@@ -903,5 +907,6 @@ def calcolo_analisi_anno_successivo(condominio_id, anno_riferimento=None):
         except:
             pass
         raise e
+
 
 

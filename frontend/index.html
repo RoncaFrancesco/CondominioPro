@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CONDOMINIO PRO - Gestione Condominiale Professionale</title>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
     <link rel="stylesheet" href="styles.css">
     <!-- React 18 da CDN -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -80,9 +81,26 @@
         console.log('Loading app.js...');
         // Carica app.js con gestione errori
         var script = document.createElement('script');
-        script.src = 'app.js?v=13';
+        script.src = 'app.js?v=39';
         script.onload = function() {
             console.log('app.js loaded successfully');
+            // carica i moduli dopo app.js
+            var mods = [
+              "components/gestione-persone.js?v=1",
+              "components/gestione-millesimi.js?v=1",
+              "components/gestione-spese.js?v=1",
+              "components/calcolo-ripartizione.js?v=1",
+              "components/preventivo-annuale.js?v=1",
+              "components/calcolo-anno-successivo.js?v=1"
+            ];
+            (function loadNext(i){
+              if (i>=mods.length) return;
+              var s = document.createElement("script");
+              s.src = mods[i];
+              s.onload = function(){ loadNext(i+1); };
+              s.onerror = function(){ console.error("Failed to load", mods[i]); loadNext(i+1); };
+              document.head.appendChild(s);
+            })(0);
         };
         script.onerror = function() {
             console.error('Failed to load app.js');
@@ -90,5 +108,36 @@
         };
         document.head.appendChild(script);
     </script>
-</body>
+  </body>
 </html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
